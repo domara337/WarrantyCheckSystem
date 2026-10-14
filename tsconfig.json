@@ -1,16 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "strict": false,
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "types": ["node"],
-    "noEmit": true
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["api/**/*"],
-  "exclude": ["node_modules", "Frontend", "api/_backend/node_modules"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules"]
 }
