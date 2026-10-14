@@ -1,0 +1,58 @@
+import pg from "pg";
+import dotenv from "dotenv";
+import path from "path";
+
+// Load .env correctly when running locally
+if (process.env.NODE_ENV !== "production") {
+  // Looks for .env in the root project folder regardless of where db.ts is nested
+  dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+}
+
+const databaseUrl = process.env.DATABASE_URL;
+const port = process.env.PG_PORT ? Number(process.env.PG_PORT) : 6543;
+
+if (!databaseUrl) {
+  const missing = ["PG_HOST", "PG_DATABASE", "PG_USER", "PG_PASSWORD"].filter(
+    (key) => !process.env[key],
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing database configuration: set DATABASE_URL or ${missing.join(", ")}.`,
+    );
+  }
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("PG_PORT must be an integer between 1 and 65535.");
+  }
+}
+
+// Automatically enable SSL for Supabase / remote connection strings
+const useSsl = 
+  process.env.PG_SSL === "true" || 
+  (databaseUrl && (databaseUrl.includes("sslmode=require") || databaseUrl.includes("supabase.com")));
+
+const db = new pg.Pool({
+  ...(databaseUrl
+    ? { connectionString: databaseUrl }
+    : {
+        user: process.env.PG_USER,
+        host: process.env.PG_HOST,
+        database: process.env.PG_DATABASE,
+        password: process.env.PG_PASSWORD,
+        port,
+      }),
+  // Force SSL enabled for Supabase
+  ...(useSsl && { ssl: { rejectUnauthorized: false } }),
+  max: 1,
+  connectionTimeoutMillis: 5000,
+  query_timeout: 10000,
+  statement_timeout: 10000,
+  idleTimeoutMillis: 10000,
+});
+
+db.on("error", (err) => {
+  console.error("Unexpected error on idle database client", err);
+});
+
+export default db;

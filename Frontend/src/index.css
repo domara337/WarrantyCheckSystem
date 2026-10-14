@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   BASE
+   Custom element defaults must live in @layer base so that Tailwind
+   utilities (which sit in the utilities layer) can always override them.
+   ========================================================================== */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-slate-100);
+    color: var(--color-slate-600);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Keep native controls in step with dark/light themes */
+  @media (prefers-color-scheme: dark) {
+    html {
+      color-scheme: dark;
+    }
+
+    body {
+      background-color: var(--color-slate-950);
+      color: var(--color-slate-300);
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    html {
+      color-scheme: light;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--color-slate-900);
+    text-wrap: balance;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      color: var(--color-slate-50);
+    }
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  /* Keyboard focus states */
+  :focus-visible {
+    outline: 2px solid var(--color-blue-600);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-blue-600);
+    color: #fff;
+  }
+}
+
+/* ==========================================================================
+   COMPONENT UTILITIES & Z-INDEX STACKING FIXES
+   ========================================================================== */
+@layer components {
+  /* Fix 1: Ensure search header stays above page content & doesn't clip children */
+  .search-header-container {
+    position: relative;
+    z-index: 50;
+    overflow: visible !important;
+  }
+
+  /* Fix 2: Float search results dropdown on top of everything */
+  .search-results-dropdown {
+    position: absolute;
+    z-index: 100;
+  }
+
+  /* Slim scrollbar for sidebar & modal bodies */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-slate-300) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: var(--color-slate-300);
+    border-radius: 9999px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .scrollbar-slim {
+      scrollbar-color: var(--color-slate-700) transparent;
+    }
+
+    .scrollbar-slim::-webkit-scrollbar-thumb {
+      background-color: var(--color-slate-700);
+    }
+  }
+}
