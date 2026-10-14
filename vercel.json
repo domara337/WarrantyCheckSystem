@@ -1,7 +1,22 @@
 {
-  "buildCommand": "npm --prefix Frontend ci && npm --prefix Frontend run build",
-  "outputDirectory": "Frontend/dist",
+  "services": {
+    "backend": {
+      "root": "Backend",
+      "framework": "express"
+    },
+    "frontend": {
+      "root": "Frontend",
+      "framework": "vite"
+    }
+  },
   "rewrites": [
-    { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/(.*)",
+      "destination": { "service": "frontend" }
+    }
   ]
 }
