@@ -17,6 +17,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.11.24",
     "@types/pg": "^8.23.1",
-    "typescript": "^7.0.2"
+    "typescript": "^5.8.2"
   }
 }
