@@ -16,7 +16,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": { "service": "Frontend" }
+      "destination": { "service": "frontend" }
     }
   ]
 }
