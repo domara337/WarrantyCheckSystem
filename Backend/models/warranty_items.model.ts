@@ -78,12 +78,14 @@ export const createProductEntry = async (entry: ProductEntryInput) => {
       ]
     );
 
+    // If no warranty item was created, rollback and return null
     if (warrantyResult.rows.length === 0) {
       await client.query('ROLLBACK');
       transactionStarted = false;
       return null;
     }
 
+    // Insert installation record
     const warrantyItem = warrantyResult.rows[0] as WarrantyItem;
     const installationResult = await client.query(
       `INSERT INTO installations (
@@ -115,8 +117,9 @@ export const createProductEntry = async (entry: ProductEntryInput) => {
 
 // Search warranty items by serial number, part number, label ID, customer name, or contact person.
 export const searchWarrantyItems = async (searchTerm: string): Promise<SearchWarrantyItemResult[]> => {
+ // Use ILIKE for case-insensitive search and allow partial matches
   const query = `%${searchTerm.trim()}%`;
-
+// Use ILIKE for case-insensitive search and allow partial matches
   const result = await db.query(
     `SELECT 
       w.id as warranty_id,

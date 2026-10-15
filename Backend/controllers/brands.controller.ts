@@ -44,6 +44,8 @@ export const getBrand=async(req:any,res:any)=>{
     }
 }
 
+
+//controller to add a new brand into database
 export const addBrand=async(req:any,res:any)=>{
     try{
         const {name}=req.body;

@@ -8,9 +8,11 @@ if (process.env.NODE_ENV !== "production") {
   dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 }
 
+// Validate database configuration and get the url  and port from environment variables
 const databaseUrl = process.env.DATABASE_URL;
 const port = process.env.PG_PORT ? Number(process.env.PG_PORT) : 6543;
 
+// Validate database configuration
 if (!databaseUrl) {
   const missing = ["PG_HOST", "PG_DATABASE", "PG_USER", "PG_PASSWORD"].filter(
     (key) => !process.env[key],
@@ -22,6 +24,7 @@ if (!databaseUrl) {
     );
   }
 
+  // Validate port if provided and ensure it's a valid integer between 1 and 65535
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("PG_PORT must be an integer between 1 and 65535.");
   }
@@ -51,6 +54,8 @@ const db = new pg.Pool({
   idleTimeoutMillis: 10000,
 });
 
+
+// Handle unexpected errors on the database client
 db.on("error", (err) => {
   console.error("Unexpected error on idle database client", err);
 });

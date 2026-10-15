@@ -8,6 +8,7 @@ export interface Branch{
  created_at?: Date;
   updated_at?: Date;
 }
+
 //get all branches
 export const getAllBranches=async()=>{
     const result=await db.query('SELECT * FROM branches ORDER BY id ASC');
