@@ -6,8 +6,10 @@ export interface User {
   branch_id?: number | null;
 }
 
-export const normalizeRole = (role: string): string =>
-  role.trim().toLowerCase().replace(/[\s-]+/g, '_');
+export const normalizeRole = (role: string): string => {
+  const normalizedRole = role.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return normalizedRole === 'super_admin' ? 'admin' : normalizedRole;
+};
 
 export interface AuthResponse {
   token: string;

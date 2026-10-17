@@ -3,8 +3,18 @@ import bcrypt from "bcrypt";
 // Import user model functions to interact with the database
 import { findUserByEmail, createUser, getAllUsers,getAllStaffUsers, getUserById, deleteUser } from "../models/users.model";
 
-const normalizeRole = (role: unknown): string =>
-  typeof role === "string" ? role.trim().toLowerCase().replace(/[\s-]+/g, "_") : "";
+const normalizeRole = (role: unknown): string => {
+  if (typeof role !== "string") return "";
+  const normalizedRole = role.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalizedRole === "super_admin" ? "admin" : normalizedRole;
+};
+
+const DATABASE_ROLES: Record<string, string> = {
+  technician: "Technician",
+  sales: "Sales",
+  admin: "Super Admin",
+  branch_manager: "Branch Manager",
+};
 
 // Controller to handle user login request
 export const login = async (req:any, res:any) => {
@@ -47,12 +57,12 @@ export const register = async (req:any, res:any) => {
   try {
     // Extract required user fields from request body
     const { full_name, email, password, role, branch_id = null } = req.body;
-    const allowedRoles = ["technician", "sales", "admin", "branch_manager", "Branch Manager"];
+    const storedRole = typeof role === "string" ? DATABASE_ROLES[normalizeRole(role)] : undefined;
     if (
       typeof full_name !== "string" || !full_name.trim() ||
       typeof email !== "string" || !email.trim() ||
       typeof password !== "string" || password.length < 8 ||
-      typeof role !== "string" || !allowedRoles.includes(role) ||
+      !storedRole ||
       (branch_id !== null && (!Number.isInteger(Number(branch_id)) || Number(branch_id) < 1))
     ) {
       return res.status(400).json({
@@ -67,7 +77,6 @@ export const register = async (req:any, res:any) => {
     // Hash the plain text password with a salt factor of 10
     const hashedPassword = await bcrypt.hash(password, 10);
     // Insert new user into database via model function
-    const storedRole = role === "branch_manager" ? "Branch Manager" : role;
     const newUser = await createUser(full_name.trim(), normalizedEmail, hashedPassword, storedRole, branch_id);
     const { password_hash: _passwordHash, ...safeUser } = newUser;
     const jwt = require("jsonwebtoken");
