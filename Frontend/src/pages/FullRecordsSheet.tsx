@@ -13,6 +13,8 @@ interface RecordDraft {
   warranty_start_date: string;
 }
 
+const PAGE_SIZE = 25;
+
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (isAxiosError<{ message?: string }>(error)) {
     return error.response?.data?.message || fallback;
@@ -49,6 +51,7 @@ const FullRecordsSheet: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingRecord, setEditingRecord] = useState<FullWarrantyRecord | null>(null);
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [busyRecordId, setBusyRecordId] = useState<string | number | null>(null);
@@ -99,6 +102,18 @@ const FullRecordsSheet: React.FC = () => {
       ].some((value) => value.toLowerCase().includes(query)),
     );
   }, [records, searchTerm]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE));
+  const visiblePage = Math.min(currentPage, pageCount);
+  const paginatedRecords = useMemo(() => {
+    const startIndex = (visiblePage - 1) * PAGE_SIZE;
+    return filteredRecords.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredRecords, visiblePage]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const startEditing = (record: FullWarrantyRecord) => {
     setEditingRecord(record);
@@ -170,7 +185,10 @@ const FullRecordsSheet: React.FC = () => {
             <Input
               label="Search records"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Serial, label, product, branch, or customer"
             />
           </div>
@@ -210,7 +228,7 @@ const FullRecordsSheet: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredRecords.map((record) => {
+                  {paginatedRecords.map((record) => {
                     const latestInstallation = record.installations[0];
                     const status = getRecordStatus(record);
                     const isBusy = busyRecordId === record.id;
@@ -271,6 +289,50 @@ const FullRecordsSheet: React.FC = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+          {!loading && filteredRecords.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Showing {(visiblePage - 1) * PAGE_SIZE + 1}–{Math.min(visiblePage * PAGE_SIZE, filteredRecords.length)} of {filteredRecords.length} records
+              </p>
+              {pageCount > 1 && (
+                <nav className="flex flex-wrap items-center justify-center gap-1" aria-label="Records pages">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="px-3 py-1.5"
+                    disabled={visiblePage === 1}
+                    onClick={() => goToPage(visiblePage - 1)}
+                    aria-label="Go to previous page"
+                  >
+                    Previous
+                  </Button>
+                  {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      type="button"
+                      variant={pageNumber === visiblePage ? 'primary' : 'outline'}
+                      className="min-w-9 px-3 py-1.5"
+                      onClick={() => goToPage(pageNumber)}
+                      aria-label={`Go to page ${pageNumber}`}
+                      aria-current={pageNumber === visiblePage ? 'page' : undefined}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="px-3 py-1.5"
+                    disabled={visiblePage === pageCount}
+                    onClick={() => goToPage(visiblePage + 1)}
+                    aria-label="Go to next page"
+                  >
+                    Next
+                  </Button>
+                </nav>
+              )}
             </div>
           )}
         </div>
