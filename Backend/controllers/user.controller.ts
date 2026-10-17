@@ -1,7 +1,8 @@
 // Import bcrypt to compare and hash staff passwords securely
 import bcrypt from "bcrypt";
+import { Request, Response } from "express";
 // Import user model functions to interact with the database
-import { findUserByEmail, createUser, getAllUsers,getAllStaffUsers, getUserById, deleteUser } from "../models/users.model";
+import { findUserByEmail, createUser, getAllUsers, getUserById, updateUser, deleteUser } from "../models/users.model";
 
 const normalizeRole = (role: unknown): string => {
   if (typeof role !== "string") return "";
@@ -16,8 +17,11 @@ const DATABASE_ROLES: Record<string, string> = {
   branch_manager: "Branch Manager",
 };
 
+const sameUserId = (left: string, right: string): boolean =>
+  left.toLowerCase() === right.toLowerCase();
+
 // Controller to handle user login request
-export const login = async (req:any, res:any) => {
+export const login = async (req: Request, res: Response) => {
   try {
     // Extract email and password from the request body
     const { email, password } = req.body;
@@ -53,20 +57,18 @@ return res.status(200).json({ token, user: { ...safeUser, role: normalizedRole }
 };
 
 // Controller to register a new internal staff user
-export const register = async (req:any, res:any) => {
+export const register = async (req: Request, res: Response) => {
   try {
     // Extract required user fields from request body
-    const { full_name, email, password, role, branch_id = null } = req.body;
-    const storedRole = typeof role === "string" ? DATABASE_ROLES[normalizeRole(role)] : undefined;
+    const { full_name, email, password } = req.body;
+    const storedRole = DATABASE_ROLES.technician;
     if (
       typeof full_name !== "string" || !full_name.trim() ||
       typeof email !== "string" || !email.trim() ||
-      typeof password !== "string" || password.length < 8 ||
-      !storedRole ||
-      (branch_id !== null && (!Number.isInteger(Number(branch_id)) || Number(branch_id) < 1))
+      typeof password !== "string" || password.length < 8
     ) {
       return res.status(400).json({
-        message: "Provide a name, valid email, password of at least 8 characters, valid role, and optional valid branch.",
+        message: "Provide a name, email, and password of at least 8 characters.",
       });
     }
     // Check if account with same email already exists
@@ -77,7 +79,7 @@ export const register = async (req:any, res:any) => {
     // Hash the plain text password with a salt factor of 10
     const hashedPassword = await bcrypt.hash(password, 10);
     // Insert new user into database via model function
-    const newUser = await createUser(full_name.trim(), normalizedEmail, hashedPassword, storedRole, branch_id);
+    const newUser = await createUser(full_name.trim(), normalizedEmail, hashedPassword, storedRole, null);
     const { password_hash: _passwordHash, ...safeUser } = newUser;
     const jwt = require("jsonwebtoken");
     const normalizedRoleValue = normalizeRole(safeUser.role);
@@ -100,7 +102,7 @@ export const register = async (req:any, res:any) => {
 };
 
 // Controller to retrieve all internal staff accounts
-export const RetrieveUsers = async (req:any, res:any) => {
+export const RetrieveUsers = async (_req: Request, res: Response) => {
   try {
     // Fetch user records from database model
     const users = await getAllUsers();
@@ -118,13 +120,12 @@ export const RetrieveUsers = async (req:any, res:any) => {
   }
 };
 
-export const getUser = async (req:any, res:any) => {
+export const getUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
     // Validate UUID format before hitting the DB
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (typeof id !== "string" || !isValidUserId(id)) {
       return res.status(400).json({ error: "Invalid user ID format." });
     }
 
@@ -139,16 +140,61 @@ export const getUser = async (req:any, res:any) => {
   }
 };
 
-// Controller to remove a staff user account
-export const removeUser = async (req:any, res:any) => {
+export const updateUserDetails = async (req: Request, res: Response) => {
   try {
-    // Extract user ID from route parameters
     const { id } = req.params;
-    // Delete user from database via model
+    if (typeof id !== "string" || !isValidUserId(id)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    const { full_name, email, role, branch_id } = req.body;
+    const storedRole = typeof role === "string" ? DATABASE_ROLES[normalizeRole(role)] : undefined;
+    const branchId = branch_id === null || branch_id === "" ? null : Number(branch_id);
+    if (
+      typeof full_name !== "string" || !full_name.trim() ||
+      typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      !storedRole ||
+      (branchId !== null && (!Number.isInteger(branchId) || branchId < 1))
+    ) {
+      return res.status(400).json({ error: "Provide a name, valid email, valid role, and optional valid branch." });
+    }
+
+    if (req.user && sameUserId(req.user.id, id) && normalizeRole(role) !== "admin") {
+      return res.status(400).json({ error: "You cannot remove your own administrator role." });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await findUserByEmail(normalizedEmail);
+    if (existingUser && !sameUserId(String(existingUser.id), id)) {
+      return res.status(409).json({ error: "User email already exists." });
+    }
+
+    const updated = await updateUser(id, full_name.trim(), normalizedEmail, storedRole, branchId);
+    if (!updated) return res.status(404).json({ error: "User not found." });
+    return res.status(200).json(updated);
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const isValidUserId = (id: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+// Controller to remove a staff user account
+export const removeUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (typeof id !== "string" || !isValidUserId(id)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+    if (req.user && sameUserId(req.user.id, id)) {
+      return res.status(400).json({ error: "You cannot delete your own account." });
+    }
     const deletedUser = await deleteUser(id);
-    // Return 404 error if user ID didn't match any record
     if (!deletedUser) return res.status(404).json({ error: "User not found." });
-    // Return confirmation response
     return res.status(200).json({ message: "User deleted successfully." });
   } catch (error) {
     // Handle database error and return 500 status code

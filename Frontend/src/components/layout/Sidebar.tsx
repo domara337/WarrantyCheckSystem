@@ -27,9 +27,11 @@ const NAV_ITEMS = [
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const navItems = user && ['branch_manager', 'admin'].includes(normalizeRole(user.role))
-    ? [
-        ...NAV_ITEMS,
+  const userRole = user ? normalizeRole(user.role) : '';
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(user && ['branch_manager', 'admin'].includes(userRole)
+      ? [
         {
           to: '/records-sheet',
           label: 'Records',
@@ -44,7 +46,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           ),
         },
       ]
-    : NAV_ITEMS;
+      : []),
+    ...(userRole === 'admin'
+      ? [{
+          to: '/users',
+          label: 'Users',
+          description: 'Manage staff access',
+          icon: (
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M15 19.128a9.003 9.003 0 005.25-2.568M15 19.128v-.003c0-1.054-.255-2.048-.706-2.926M15 19.128v.106A12.318 12.318 0 018.624 21c-2.325 0-4.49-.646-6.341-1.766l-.003-.106a6.375 6.375 0 0111.335-3.926M15 19.128v-.003c0-1.054-.255-2.048-.706-2.926m0 0a6.375 6.375 0 00-11.335 3.926M15 19.128a9.003 9.003 0 005.25-2.568m-5.956-.358a6.375 6.375 0 00-11.335 3.926M15 19.128v.106M15 19.128v-.003c0-1.054-.255-2.048-.706-2.926M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm7.5 3.375a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+            />
+          ),
+        }]
+      : []),
+  ];
 
   return (
     <>

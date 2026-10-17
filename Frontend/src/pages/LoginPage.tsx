@@ -4,7 +4,6 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Input } from '../components/common/Input';
-import { Select } from '../components/common/Select';
 import { Button } from '../components/common/Button';
 
 export const LoginPage: React.FC = () => {
@@ -14,7 +13,6 @@ export const LoginPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,7 +25,7 @@ export const LoginPage: React.FC = () => {
     try {
       const endpoint = isSigningUp ? '/users/register' : '/users/login';
       const payload = isSigningUp
-        ? { full_name: fullName.trim(), email: email.trim(), password, role }
+        ? { full_name: fullName.trim(), email: email.trim(), password }
         : { email: email.trim(), password };
       const res = await apiClient.post(endpoint, payload);
       login(res.data.token, res.data.user);
@@ -58,13 +56,7 @@ export const LoginPage: React.FC = () => {
               onChange={(event) => setFullName(event.target.value)}
               required
             />
-            <Select label="Role" value={role} onChange={(event) => setRole(event.target.value)} required>
-              <option value="">Choose a role...</option>
-              <option value="technician">Technician</option>
-              <option value="sales">Sales</option>
-              <option value="admin">Admin</option>
-              <option value="branch_manager">Branch Manager</option>
-            </Select>
+            <p className="text-xs text-slate-400">New accounts are assigned the Technician role. Contact an administrator if you need a different role.</p>
           </>
         )}
         <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role: string;
   branch_id?: number | null;
+  branch_name?: string | null;
 }
 
 export const normalizeRole = (role: string): string => {

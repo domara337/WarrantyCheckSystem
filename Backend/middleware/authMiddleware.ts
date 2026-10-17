@@ -1,21 +1,24 @@
+import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { getUserRoleById } from "../models/users.model";
 
-interface AuthenticatedRequest {
-	headers: { authorization?: string };
-	user?: { id: string; email: string; role: string };
+interface AuthenticatedUser {
+	id: string;
+	email: string;
+	role: string;
 }
 
-interface MiddlewareResponse {
-	status: (code: number) => MiddlewareResponse;
-	json: (body: unknown) => MiddlewareResponse;
+declare global {
+	namespace Express {
+		interface Request {
+			user?: AuthenticatedUser;
+		}
+	}
 }
 
-type NextFunction = () => void;
-
-/** Verify a Bearer JWT and attach its user claims to the request. */
 export const authMiddleware = (
-	req: AuthenticatedRequest,
-	res: MiddlewareResponse,
+	req: Request,
+	res: Response,
 	next: NextFunction,
 ): void => {
 	const authorization = req.headers.authorization;
@@ -37,13 +40,34 @@ export const authMiddleware = (
 			return;
 		}
 
+		let role = String(payload.role).trim().toLowerCase().replace(/[\s-]+/g, "_");
+		if (role === "super_admin") role = "admin";
 		req.user = {
 			id: String(payload.id),
 			email: String(payload.email),
-			role: String(payload.role),
+			role,
 		};
 		next();
 	} catch {
 		res.status(401).json({ error: "Invalid or expired authentication token." });
+	}
+};
+
+export const adminMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+	if (!req.user) {
+		res.status(401).json({ error: "Authentication token required." });
+		return;
+	}
+	try {
+		const storedRole = await getUserRoleById(req.user.id);
+		const role = storedRole?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+		if (role !== "admin" && role !== "super_admin") {
+			res.status(403).json({ error: "Administrator access required." });
+			return;
+		}
+		next();
+	} catch (error) {
+		console.error("Failed to verify administrator access:", error);
+		res.status(500).json({ error: "Unable to verify administrator access." });
 	}
 };
