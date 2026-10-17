@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { searchWarranty } from '../../api/warranty';
 import type { WarrantySearchResult } from '../../types';
 import { SearchResultsModal } from '../search/SearchResultsModal';
+import { queryKeys } from '../../api/queryKeys';
 
 export const TopSearchBar: React.FC = () => {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<WarrantySearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +44,10 @@ export const TopSearchBar: React.FC = () => {
     setIsModalOpen(true);
 
     try {
-      const data = await searchWarranty(query);
+      const data = await queryClient.fetchQuery({
+        queryKey: queryKeys.warrantySearch(query),
+        queryFn: () => searchWarranty(query),
+      });
       setResults(data);
     } catch (err) {
       console.error('Search failed', err);

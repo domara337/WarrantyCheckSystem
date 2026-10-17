@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Select } from '../components/common/Select';
 import { MainLayout } from '../components/layout/MainLayout';
 import { getBranches } from '../api/masterData';
 import { deleteUser, getUsers, updateUser } from '../api/users';
-import type { Branch, User } from '../types';
+import { queryKeys } from '../api/queryKeys';
+import type { User } from '../types';
 import { normalizeRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -36,9 +38,20 @@ const displayRole = (role: string): string =>
 
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const {
+    data: users = [],
+    isPending: usersLoading,
+    error: usersError,
+    refetch: refetchUsers,
+  } = useQuery({ queryKey: queryKeys.users, queryFn: getUsers });
+  const {
+    data: branches = [],
+    isPending: branchesLoading,
+    error: branchesError,
+    refetch: refetchBranches,
+  } = useQuery({ queryKey: queryKeys.branches, queryFn: getBranches });
+  const loading = usersLoading || branchesLoading;
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,24 +60,15 @@ const UsersPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [busyUserId, setBusyUserId] = useState<string | number | null>(null);
 
-  const refreshUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [userList, branchList] = await Promise.all([getUsers(), getBranches()]);
-      setUsers(userList);
-      setBranches(branchList);
-      setError('');
-    } catch (loadError: unknown) {
-      console.error('Failed to load user accounts:', loadError);
-      setError(getErrorMessage(loadError, 'Unable to load users. Please try again.'));
-    } finally {
-      setLoading(false);
+  const refreshUsers = async () => {
+    setError('');
+    const results = await Promise.all([refetchUsers(), refetchBranches()]);
+    const failedQuery = results.find((result) => result.error);
+    if (failedQuery?.error) {
+      console.error('Failed to refresh user management data:', failedQuery.error);
+      setError(getErrorMessage(failedQuery.error, 'Unable to refresh users. Please try again.'));
     }
-  }, []);
-
-  useEffect(() => {
-    void refreshUsers();
-  }, [refreshUsers]);
+  };
 
   const filteredUsers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -101,7 +105,10 @@ const UsersPage: React.FC = () => {
         role: draft.role,
         branch_id: draft.branch_id ? Number(draft.branch_id) : null,
       });
-      setUsers((current) => current.map((user) => user.id === updated.id ? updated : user));
+      queryClient.setQueryData<User[]>(queryKeys.users, (current = []) =>
+        current.map((user) => user.id === updated.id ? updated : user),
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users });
       setEditingUser(null);
       setDraft(null);
       setNotice(`${updated.full_name}'s account was updated.`);
@@ -120,7 +127,10 @@ const UsersPage: React.FC = () => {
     setNotice('');
     try {
       await deleteUser(user.id);
-      setUsers((current) => current.filter((item) => item.id !== user.id));
+      queryClient.setQueryData<User[]>(queryKeys.users, (current = []) =>
+        current.filter((item) => item.id !== user.id),
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users });
       setNotice(`${user.full_name}'s account was deleted.`);
     } catch (deleteError: unknown) {
       console.error('Failed to delete user account:', deleteError);
@@ -144,7 +154,7 @@ const UsersPage: React.FC = () => {
           <div className="text-sm text-slate-500 dark:text-slate-400">{users.length} {users.length === 1 ? 'user' : 'users'}</div>
         </div>
 
-        {error && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
+        {(error || usersError || branchesError) && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">{error || getErrorMessage(usersError || branchesError, 'Unable to load users. Please try again.')}</div>}
         {notice && <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">{notice}</div>}
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">

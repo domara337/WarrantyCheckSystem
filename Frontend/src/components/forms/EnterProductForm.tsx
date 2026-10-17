@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { isAxiosError } from 'axios';
-import type { Branch, Brand, Product, WarrantySearchResult } from '../../types';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { WarrantySearchResult } from '../../types';
 import { createProductEntry, searchWarranty } from '../../api/warranty';
 import { getBranches, getBrands, getProductsByBrand } from '../../api/masterData';
+import { queryKeys } from '../../api/queryKeys';
 import { CustomerSelect } from './CustomerSelect';
 import { Input } from '../common/Input';
 import { Select } from '../common/Select';
@@ -17,10 +19,18 @@ interface EnterProductFormProps {
 }
 
 export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess }) => {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
+  const branchesQuery = useQuery({ queryKey: queryKeys.branches, queryFn: getBranches });
+  const brandsQuery = useQuery({ queryKey: queryKeys.brands, queryFn: getBrands });
   const [brandId, setBrandId] = useState<string | number | ''>('');
+  const productsQuery = useQuery({
+    queryKey: brandId ? queryKeys.productsByBrand(brandId) : ['products', 'by-brand', 'none'],
+    queryFn: () => getProductsByBrand(brandId),
+    enabled: Boolean(brandId),
+  });
+  const branches = branchesQuery.data ?? [];
+  const brands = brandsQuery.data ?? [];
+  const products = productsQuery.data ?? [];
   const [productId, setProductId] = useState<string | number | ''>('');
   const [branchId, setBranchId] = useState<string | number | ''>('');
   const [customerId, setCustomerId] = useState<string | number>('');
@@ -40,45 +50,6 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Reuse the existing master-data sources for the fixed brand/branch choices.
-  useEffect(() => {
-    let active = true;
-
-    Promise.all([getBranches(), getBrands()])
-      .then(([branchData, brandData]) => {
-        if (!active) return;
-        setBranches(branchData);
-        setBrands(brandData);
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load entry form options:', error);
-        if (active) alert('Failed to load brands and branches. Please refresh and try again.');
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Brand changes clear the prior product and request only products for the new brand.
-  useEffect(() => {
-    if (!brandId) return;
-
-    let active = true;
-    getProductsByBrand(brandId)
-      .then((brandProducts) => {
-        if (active) setProducts(brandProducts);
-      })
-      .catch((error: unknown) => {
-        console.error('Failed to load products for selected brand:', error);
-        if (active) alert('Failed to load products for the selected brand.');
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [brandId]);
-
   // Preserve the existing warranty search API while looking up serials as they are entered.
   useEffect(() => {
     const serial = serialNumber.trim();
@@ -86,7 +57,10 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
 
     let active = true;
     const timeoutId = window.setTimeout(() => {
-      searchWarranty(serial)
+      queryClient.fetchQuery({
+        queryKey: queryKeys.warrantySearch(serial),
+        queryFn: () => searchWarranty(serial),
+      })
         .then((results) => {
           if (!active) return;
           const match = results.find((item) => item.serial_number.toLowerCase() === serial.toLowerCase());
@@ -106,7 +80,7 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
       active = false;
       window.clearTimeout(timeoutId);
     };
-  }, [serialNumber]);
+  }, [queryClient, serialNumber]);
 
 
   // Handle the form submission by validating inputs and calling the API to create the product entry.
@@ -142,6 +116,8 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
         warranty_start_date: warrantyStartDate,
         notes: notes.trim(),
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.warrantyRecords });
+      void queryClient.invalidateQueries({ queryKey: ['warranty-search'] });
       onSuccess();
     } catch (error) {
       const responseMessage = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
@@ -161,6 +137,14 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
         <h2 className="text-base font-semibold text-slate-900 dark:text-white">Enter Product</h2>
         <p className="mt-0.5 text-sm text-slate-500">Save the product, installation, and warranty in one step.</p>
       </div>
+
+      {(branchesQuery.error || brandsQuery.error || productsQuery.error) && (
+        <div role="alert" className="mx-5 mt-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 sm:mx-6">
+          {branchesQuery.error || brandsQuery.error
+            ? 'Failed to load brands and branches. Please refresh and try again.'
+            : 'Failed to load products for the selected brand.'}
+        </div>
+      )}
 
       <div className="space-y-6 px-5 py-6 sm:px-6">
         <fieldset className="space-y-4">
@@ -199,7 +183,6 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
               onChange={(event) => {
                 setBrandId(event.target.value);
                 setProductId('');
-                setProducts([]);
               }}
               required
             >
@@ -229,7 +212,7 @@ export const EnterProductForm: React.FC<EnterProductFormProps> = ({ onSuccess })
               disabled={!brandId}
               required
             >
-              <option value="">{brandId ? 'Select Product...' : 'Select a brand first...'}</option>
+              <option value="">{!brandId ? 'Select a brand first...' : productsQuery.isPending ? 'Loading products...' : 'Select Product...'}</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.model_name} ({product.part_number})

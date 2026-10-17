@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { isAxiosError } from 'axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { MainLayout } from '../components/layout/MainLayout';
 import { deleteWarrantyRecord, getAllWarrantyRecords, updateWarrantyRecord } from '../api/warranty';
+import { queryKeys } from '../api/queryKeys';
 import type { FullWarrantyRecord } from '../types';
 
 interface RecordDraft {
@@ -47,45 +49,22 @@ const getRecordStatus = (record: FullWarrantyRecord): string => {
 };
 
 const FullRecordsSheet: React.FC = () => {
-  const [records, setRecords] = useState<FullWarrantyRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const {
+    data: records = [],
+    isPending: loading,
+    error: recordsError,
+    refetch: refreshRecords,
+  } = useQuery({
+    queryKey: queryKeys.warrantyRecords,
+    queryFn: getAllWarrantyRecords,
+  });
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingRecord, setEditingRecord] = useState<FullWarrantyRecord | null>(null);
   const [draft, setDraft] = useState<RecordDraft | null>(null);
   const [busyRecordId, setBusyRecordId] = useState<string | number | null>(null);
-
-  const refreshRecords = useCallback(async () => {
-    try {
-      setRecords(await getAllWarrantyRecords());
-      setError('');
-    } catch (loadError) {
-      console.error('Failed to load warranty records:', loadError);
-      setError(getErrorMessage(loadError, 'Unable to load records. Please try again.'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    getAllWarrantyRecords()
-      .then((items) => {
-        if (active) setRecords(items);
-      })
-      .catch((loadError: unknown) => {
-        console.error('Failed to load warranty records:', loadError);
-        if (active) setError(getErrorMessage(loadError, 'Unable to load records. Please try again.'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const filteredRecords = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -148,7 +127,8 @@ const FullRecordsSheet: React.FC = () => {
       });
       setEditingRecord(null);
       setDraft(null);
-      await refreshRecords();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.warrantyRecords });
+      await queryClient.invalidateQueries({ queryKey: ['warranty-search'] });
     } catch (updateError) {
       console.error('Failed to update warranty record:', updateError);
       setError(getErrorMessage(updateError, 'Unable to update this record. Please try again.'));
@@ -164,7 +144,11 @@ const FullRecordsSheet: React.FC = () => {
     setError('');
     try {
       await deleteWarrantyRecord(record.id);
-      setRecords((currentRecords) => currentRecords.filter((item) => item.id !== record.id));
+      queryClient.setQueryData<FullWarrantyRecord[]>(queryKeys.warrantyRecords, (currentRecords = []) =>
+        currentRecords.filter((item) => item.id !== record.id),
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.warrantyRecords });
+      void queryClient.invalidateQueries({ queryKey: ['warranty-search'] });
     } catch (deleteError) {
       console.error('Failed to delete warranty record:', deleteError);
       setError(getErrorMessage(deleteError, 'Unable to delete this record. Please try again.'));
@@ -194,16 +178,21 @@ const FullRecordsSheet: React.FC = () => {
           </div>
         </div>
 
-        {error && (
+        {(error || recordsError) && (
           <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
-            {error}
+            {error || getErrorMessage(recordsError, 'Unable to load records. Please try again.')}
           </div>
         )}
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
             <h2 className="font-semibold text-slate-900 dark:text-white">All warranty records</h2>
-            <span className="text-sm text-slate-500">{filteredRecords.length} of {records.length}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-500">{filteredRecords.length} of {records.length}</span>
+              <Button type="button" variant="outline" className="px-3 py-1.5" onClick={() => void refreshRecords()} disabled={loading}>
+                Refresh
+              </Button>
+            </div>
           </div>
 
           {loading ? (

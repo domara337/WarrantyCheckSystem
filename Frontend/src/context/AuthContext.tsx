@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { normalizeRole, type User } from '../types';
 
 interface AuthContextType {
@@ -54,16 +55,19 @@ const loadAuthState = (): AuthState => {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [authState, setAuthState] = useState<AuthState>(loadAuthState);
 
   const login = (newToken: string, newUser: User) => {
     const normalizedUser = { ...newUser, role: normalizeRole(newUser.role) };
+    queryClient.clear();
     sessionStorage.setItem('token', newToken);
     sessionStorage.setItem('user', JSON.stringify(normalizedUser));
     setAuthState({ token: newToken, user: normalizedUser });
   };
 
   const logout = () => {
+    queryClient.clear();
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     setAuthState({ token: null, user: null });

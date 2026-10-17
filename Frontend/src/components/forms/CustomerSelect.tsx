@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Customer } from '../../types';
 import { getCustomers, createCustomer } from '../../api/masterData';
+import { queryKeys } from '../../api/queryKeys';
 import { Input } from '../common/Input';
 import { Select } from '../common/Select';
 import { Button } from '../common/Button';
@@ -13,7 +15,11 @@ interface CustomerSelectProps {
 
 //set the initial state of the component with the useState hook, and load the customers from the API when the component mounts using useEffect
 export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange }) => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const queryClient = useQueryClient();
+  const { data: customers = [], error: customersError } = useQuery({
+    queryKey: queryKeys.customers,
+    queryFn: getCustomers,
+  });
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -22,24 +28,6 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
   const [contactPerson, setContactPerson] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-
-
-  //function to load customers from the API and set the state with the retrieved data
-  const loadCustomers = async () => {
-    try {
-      const data = await getCustomers();
-      setCustomers(data);
-    } catch (err) {
-      console.error('Failed to load customers', err);
-    }
-  };
-
-  //useEffect hook to load customers when the component mounts
-  useEffect(() => {
-    loadCustomers();
-  }, []);
-
-
 
   const handleCreate = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
@@ -65,7 +53,7 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
       });
 
       // Update the customers list and select the newly created customer
-      setCustomers((prev) => [...prev, newCust]);
+      queryClient.setQueryData<Customer[]>(queryKeys.customers, (current = []) => [...current, newCust]);
       onChange(newCust.id);
       setShowModal(false);
 
@@ -110,6 +98,11 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
           </option>
         ))}
       </Select>
+      {customersError && (
+        <p className="text-xs text-rose-600 dark:text-rose-400" role="alert">
+          Failed to load customers. Please refresh and try again.
+        </p>
+      )}
 
       {showModal && (
         <div
