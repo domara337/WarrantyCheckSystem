@@ -6,10 +6,12 @@ import {
 	updateWarranty,
 	removeWarranty,
 	createProduct,
+	getAllWarranties,
 } from '../controllers/warrantyItems.controller';
 
 const router = Router();
 
+router.get('/', getAllWarranties);
 router.get('/search', searchWarranties);
 router.get('/serial/:serialNumber', getBySerialNumber);
 router.post('/enter-product', createProduct);

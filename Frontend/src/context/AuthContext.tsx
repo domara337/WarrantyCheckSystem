@@ -1,47 +1,90 @@
-// import React, { createContext, useContext, useState, useEffect } from 'react';
-// import type { User } from '../types';
-// import { apiClient } from '../api/client';
+import React, { createContext, useContext, useState } from 'react';
+import { normalizeRole, type User } from '../types';
 
-// interface AuthContextType {
-//   user: User | null;
-//   token: string | null;
-//   login: (token: string, user: User) => void;
-//   logout: () => void;
-//   isAuthenticated: boolean;
-// }
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  login: (token: string, user: User) => void;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
 
-// const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthState {
+  token: string | null;
+  user: User | null;
+}
 
-// export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-//   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-//   const [user, setUser] = useState<User | null>(() => {
-//     const saved = localStorage.getItem('user');
-//     return saved ? JSON.parse(saved) : null;
-//   });
+const isUser = (value: unknown): value is User =>
+  typeof value === 'object' &&
+  value !== null &&
+  'id' in value &&
+  (typeof value.id === 'number' || typeof value.id === 'string') &&
+  'full_name' in value &&
+  typeof value.full_name === 'string' &&
+  'email' in value &&
+  typeof value.email === 'string' &&
+  'role' in value &&
+  typeof value.role === 'string' &&
+  (!('branch_id' in value) || value.branch_id === null || typeof value.branch_id === 'number');
 
-//   const login = (newToken: string, newUser: User) => {
-//     setToken(newToken);
-//     setUser(newUser);
-//     localStorage.setItem('token', newToken);
-//     localStorage.setItem('user', JSON.stringify(newUser));
-//   };
+const loadAuthState = (): AuthState => {
+  const token = sessionStorage.getItem('token');
+  const storedUser = sessionStorage.getItem('user');
 
-//   const logout = () => {
-//     setToken(null);
-//     setUser(null);
-//     localStorage.removeItem('token');
-//     localStorage.removeItem('user');
-//   };
+  if (!token || !storedUser) {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    return { token: null, user: null };
+  }
 
-//   return (
-//     <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
-//       {children}
-//     </AuthContext.Provider>
-//   );
-// };
+  try {
+    const user: unknown = JSON.parse(storedUser);
+    if (!isUser(user)) {
+      throw new Error('Stored user data is invalid.');
+    }
 
-// export const useAuth = () => {
-//   const context = useContext(AuthContext);
-//   if (!context) throw new Error('useAuth must be used within an AuthProvider');
-//   return context;
-// };
+    return { token, user: { ...user, role: normalizeRole(user.role) } };
+  } catch {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    return { token: null, user: null };
+  }
+};
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authState, setAuthState] = useState<AuthState>(loadAuthState);
+
+  const login = (newToken: string, newUser: User) => {
+    const normalizedUser = { ...newUser, role: normalizeRole(newUser.role) };
+    sessionStorage.setItem('token', newToken);
+    sessionStorage.setItem('user', JSON.stringify(normalizedUser));
+    setAuthState({ token: newToken, user: normalizedUser });
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    setAuthState({ token: null, user: null });
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        ...authState,
+        login,
+        logout,
+        isAuthenticated: !!authState.token && !!authState.user,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
+};

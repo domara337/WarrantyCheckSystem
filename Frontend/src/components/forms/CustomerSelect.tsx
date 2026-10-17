@@ -10,6 +10,8 @@ interface CustomerSelectProps {
   onChange: (id: string | number) => void;
 }
 
+
+//set the initial state of the component with the useState hook, and load the customers from the API when the component mounts using useEffect
 export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -21,6 +23,8 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
+
+  //function to load customers from the API and set the state with the retrieved data
   const loadCustomers = async () => {
     try {
       const data = await getCustomers();
@@ -30,13 +34,17 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
     }
   };
 
+  //useEffect hook to load customers when the component mounts
   useEffect(() => {
     loadCustomers();
   }, []);
 
+
+
   const handleCreate = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
 
+    // Validate required fields before making the API call
     if (!name.trim()) return alert('Customer / Company Name is required');
     if (!city.trim()) return alert('City is required');
     if (!address.trim()) return alert('Address is required');
@@ -56,11 +64,12 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
         email: email || undefined,
       });
 
+      // Update the customers list and select the newly created customer
       setCustomers((prev) => [...prev, newCust]);
       onChange(newCust.id);
       setShowModal(false);
 
-      // Clear input fields
+      // Clear input fields after successful creation
       setName('');
       setMobile('');
       setCity('');
@@ -91,6 +100,8 @@ export const CustomerSelect: React.FC<CustomerSelectProps> = ({ value, onChange 
         </button>
       </div>
 
+        
+        {/* Renders a custom ui select dropdown for customers */}
       <Select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Select Customer...</option>
         {customers.map((c) => (

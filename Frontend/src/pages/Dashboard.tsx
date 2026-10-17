@@ -24,3 +24,5 @@ export const Dashboard: React.FC = () => {
     </MainLayout>
   );
 };
+
+export default Dashboard;

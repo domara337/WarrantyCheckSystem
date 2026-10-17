@@ -50,3 +50,25 @@ export interface WarrantySearchResult {
     notes: string;
   }>;
 }
+
+export interface FullWarrantyRecord {
+  id: number | string;
+  serial_number: string;
+  label_id: string;
+  warranty_months: number;
+  warranty_start_date: string;
+  warranty_end_date: string;
+  status?: string;
+  model_name: string;
+  part_number: string;
+  branch_name: string;
+  customer_name: string | null;
+  customer_mobile: string | null;
+  installations: Array<{
+    id: number | string;
+    version: string;
+    size: string;
+    installation_date: string;
+    notes: string;
+  }>;
+}

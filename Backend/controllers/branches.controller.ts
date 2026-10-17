@@ -15,11 +15,14 @@ import {
  */
 export const fetchAllBranches = async (req: Request, res: Response): Promise<Response> => {
   try {
+    // 1. Execute model query to fetch all branches
     const branches = await getAllBranches();
+    
     return res.status(200).json({
       success: true,
       data: branches,
     });
+    
   } catch (error) {
     return res.status(500).json({
       success: false,

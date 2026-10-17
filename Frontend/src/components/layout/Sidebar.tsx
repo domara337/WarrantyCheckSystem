@@ -1,5 +1,7 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { normalizeRole } from '../../types';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -23,6 +25,27 @@ const NAV_ITEMS = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const navItems = user && ['branch_manager', 'admin'].includes(normalizeRole(user.role))
+    ? [
+        ...NAV_ITEMS,
+        {
+          to: '/records-sheet',
+          label: 'Records',
+          description: 'Manage warranty records',
+          icon: (
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M8.25 6.75h12m-12 5.25h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z"
+            />
+          ),
+        },
+      ]
+    : NAV_ITEMS;
+
   return (
     <>
       {/* Mobile scrim */}
@@ -67,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <nav className="scrollbar-slim flex-1 overflow-y-auto px-3 py-5" aria-label="Main">
           <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Workspace</p>
           <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}
@@ -118,6 +141,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
             Development / Local
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              onClose();
+              navigate('/login', { replace: true });
+            }}
+            className="mt-4 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M18 15l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            Log out
+          </button>
         </div>
       </aside>
     </>

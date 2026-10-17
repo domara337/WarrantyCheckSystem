@@ -14,7 +14,7 @@ export const getBrands = async (): Promise<Brand[]> => {
   return readArrayResponse<Brand>(res.data, 'Brands');
 };
 
-
+//get products
 export const getProducts = async (): Promise<Product[]> => {
   const res = await apiClient.get<unknown>('/products');
   return readArrayResponse<Product>(res.data, 'Products');

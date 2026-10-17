@@ -2,12 +2,15 @@ import db from '../config/db.js';
 
 //find user by email
 export const findUserByEmail = async (email: string) => {
-    const result=await db.query('SELECT * FROM users WHERE email=$1', [email]);
+    const result = await db.query(
+      'SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))',
+      [email]
+    );
     return result.rows[0];
 };
 
 //create new user
-export const createUser=async(fullname:string,email:string,hashedPassword:string,role:string,branchId:number)=>{
+export const createUser=async(fullname:string,email:string,hashedPassword:string,role:string,branchId:number | null)=>{
     const result=await db.query('INSERT INTO users(full_name,email,password_hash,role,branch_id) VALUES($1,$2,$3,$4,$5) RETURNING *',[fullname,email,hashedPassword,role,branchId]);
   return result.rows[0];
 }

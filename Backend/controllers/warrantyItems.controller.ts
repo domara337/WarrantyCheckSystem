@@ -6,9 +6,19 @@ import {
   updateWarrantyItemPartial,
   deleteWarrantyItem,
   createProductEntry,
+  getAllWarrantyItems,
 } from '../models/warranty_items.model';
 import type { ProductEntryInput } from '../models/warranty_items.model';
 
+export const getAllWarranties = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const items = await getAllWarrantyItems();
+    res.status(200).json({ success: true, count: items.length, data: items });
+  } catch (error) {
+    console.error('Error fetching warranty items:', error);
+    res.status(500).json({ success: false, message: 'Server error while fetching warranty items.' });
+  }
+};
 
 
 
@@ -198,10 +208,11 @@ export const createProduct = async (req: Request<{}, {}, ProductEntryInput>, res
  */
 export const updateWarranty = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id as string, 10);
+    const idParam = req.params.id;
+    const id = Array.isArray(idParam) ? idParam[0] : idParam;
     const fieldsToUpdate = req.body;
 
-    if (isNaN(id)) {
+    if (!id) {
       res.status(400).json({ success: false, message: 'Invalid warranty ID provided.' });
       return;
     }
@@ -235,9 +246,10 @@ export const updateWarranty = async (req: Request, res: Response): Promise<void>
  */
 export const removeWarranty = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id as string, 10);
+    const idParam = req.params.id;
+    const id = Array.isArray(idParam) ? idParam[0] : idParam;
 
-    if (isNaN(id)) {
+    if (!id) {
       res.status(400).json({ success: false, message: 'Invalid warranty ID provided.' });
       return;
     }

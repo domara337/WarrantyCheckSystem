@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const installation_controller_1 = require("../controllers/installation.controller");
+const router = (0, express_1.Router)();
+router.get('/warranty/:warranty_id', installation_controller_1.getByWarrantyId);
+router.post('/', installation_controller_1.create);
+router.patch('/items/:id', installation_controller_1.updateItem);
+router.patch('/:id', installation_controller_1.update);
+router.delete('/:id', installation_controller_1.remove);
+exports.default = router;
