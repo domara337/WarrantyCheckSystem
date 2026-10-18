@@ -15,7 +15,7 @@
       "destination": { "service": "backend" }
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": { "service": "frontend", "path": "/index.html" }
     }
   ]
