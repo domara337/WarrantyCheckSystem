@@ -1,5 +1,4 @@
 {
-  "outputDirectory": "Frontend",
   "builds": [
     {
       "src": "Backend/index.ts",
@@ -9,7 +8,7 @@
       "src": "Frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "Frontend"
+        "distDir": "dist"
       }
     }
   ],
@@ -20,7 +19,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "Frontend/index.html"
+      "dest": "Frontend/dist/index.html"
     }
   ]
 }
