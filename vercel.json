@@ -1,5 +1,5 @@
 {
-  "rewrites": [
+  "builds": [
     {
       "src": "Backend/index.ts",
       "use": "@vercel/node"
@@ -19,7 +19,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "Frontend/index.html"
+      "dest": "/Frontend/dist/index.html"
     }
   ]
 }
