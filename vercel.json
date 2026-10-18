@@ -19,7 +19,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/Frontend/dist"
+      "dest": "/Frontend/dist/index.html"
     }
   ]
 }
