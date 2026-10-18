@@ -1,6 +1,8 @@
 import db from '../config/db.js';
 
 // Types/Interfaces
+//represents the structured result returned when performing a search query on warranties
+//tables like(products,branches,customers)
 export interface SearchWarrantyItemResult {
   warranty_id: number;
   serial_number: string;
@@ -17,6 +19,7 @@ export interface SearchWarrantyItemResult {
   customer_mobile: string | null;
 }
 
+//mirrors the raw schema of the warranty_items table
 export interface WarrantyItem {
   id: string | number;
   serial_number: string;
@@ -31,6 +34,7 @@ export interface WarrantyItem {
   status?: string;
 }
 
+//defines the payload required from the client/Api when creating a combined product entry
 export interface ProductEntryInput {
   serial_number: string;
   label_id: string;
@@ -46,6 +50,7 @@ export interface ProductEntryInput {
   notes: string;
 }
 
+//extends warranty item by adding product/branch/customer details and an array of nested installations.
 export interface FullWarrantyItem extends WarrantyItem {
   model_name: string;
   part_number: string;

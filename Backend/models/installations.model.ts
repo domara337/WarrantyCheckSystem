@@ -76,22 +76,24 @@ export const createInstallation = async (
 // Partial update for installation item
 export const updateInstallationItemPartial = async (
   id: number,
-  fieldsToUpdate: Partial<InstallationItem>
-): Promise<InstallationItem | null> => {
+  fieldsToUpdate: Partial<InstallationItem> //Partial makes all properties optional, allowing for partial updates
+): 
+Promise<InstallationItem | null> => { 
+
   if (!fieldsToUpdate || typeof fieldsToUpdate !== 'object') return null;
 
-  const entries = Object.entries(fieldsToUpdate).filter(
+  const entries = Object.entries(fieldsToUpdate).filter( //coverts the object into an array of key-value pairs and filters out any undefined values or keys not in the allowed set
     ([key, value]) =>
-      value !== undefined && ALLOWED_ITEM_COLUMNS.has(key as keyof InstallationItem)
+      value !== undefined && ALLOWED_ITEM_COLUMNS.has(key as keyof InstallationItem) //security check to ensure only allowed columns are updated
   );
 
   if (entries.length === 0) return null;
 
   const setClause = entries
-    .map(([key], index) => `"${key}" = $${index + 1}`)
+    .map(([key], index) => `"${key}" = $${index + 1}`) //maps each valid key into a parameterized sql assignment expression 
     .join(', ');
 
-  const values = entries.map(([, value]) => value);
+  const values = entries.map(([, value]) => value); //extracts just the values into a seperate array to use safely with sql parameters
 
   const query = `
     UPDATE installation_items 
@@ -100,7 +102,7 @@ export const updateInstallationItemPartial = async (
     RETURNING *
   `;
 
-  const result = await db.query(query, [...values, id]);
+  const result = await db.query(query, [...values, id]); //returns the list of row of the result or null if no record was found.
   return result.rows[0] || null;
 };
 
@@ -113,7 +115,7 @@ export const updateInstallationItemPartial = async (
 // Partial update for installation
 export const updateInstallation = async (
   id: number,
-  updates: Partial<Omit<Installation, 'id' | 'warranty_item_id' | 'created_at' | 'updated_at'>>
+  updates: Partial<Omit<Installation, 'id' | 'warranty_item_id' | 'created_at' | 'updated_at'>> //specify which columns to update
 ): Promise<Installation | null> => {
   if (!updates || typeof updates !== 'object') return null;
 

@@ -1,5 +1,7 @@
 import db from '../config/db.js';
 
+
+//get all products
 export const getProducts=async()=>{
     const result=await db.query(
         `SELECT * FROM products ORDER BY model_name ASC`
