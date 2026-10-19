@@ -1,4 +1,4 @@
-import type { ProductEntry } from '../types';
+import type { FullWarrantyRecord, ProductEntry } from '../types';
 
 export interface CsvImportIssue {
   row: number;
@@ -174,6 +174,44 @@ export const parseProductCsv = (input: string): ParsedProductCsv => {
   return { entries, issues };
 };
 
-export const PRODUCT_CSV_TEMPLATE =
-  'serial_number,label_id,brand_id,product_id,branch_id,customer_id,warranty_months,warranty_start_date,installation_date,version,size,notes\r\n' +
-  'SN-12345,LABEL-123,1,PRODUCT-ID,1,CUSTOMER-ID,36,2026-10-19,2026-10-19,v1,65,';
+export const PRODUCT_CSV_COLUMNS = [
+  'serial_number',
+  'label_id',
+  'brand_id',
+  'product_id',
+  'branch_id',
+  'customer_id',
+  'warranty_months',
+  'warranty_start_date',
+  'installation_date',
+  'version',
+  'size',
+  'notes',
+] as const;
+
+const escapeCsvValue = (value: string | number | null | undefined): string => {
+  const text = value == null ? '' : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+export const createWarrantyRecordsCsv = (records: FullWarrantyRecord[]): string => {
+  const rows = records.map((record) => {
+    const installation = record.installations?.[0];
+    return [
+      record.serial_number,
+      record.label_id,
+      record.brand_id,
+      record.product_id,
+      record.branch_id,
+      record.customer_id,
+      record.warranty_months,
+      record.warranty_start_date.slice(0, 10),
+      installation?.installation_date.slice(0, 10) ?? '',
+      installation?.version ?? '',
+      installation?.size ?? '',
+      installation?.notes ?? '',
+    ].map(escapeCsvValue).join(',');
+  });
+
+  return [PRODUCT_CSV_COLUMNS.join(','), ...rows].join('\r\n');
+};

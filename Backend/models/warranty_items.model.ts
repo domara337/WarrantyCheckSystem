@@ -52,6 +52,7 @@ export interface ProductEntryInput {
 
 //extends warranty item by adding product/branch/customer details and an array of nested installations.
 export interface FullWarrantyItem extends WarrantyItem {
+  brand_id: number;
   model_name: string;
   part_number: string;
   branch_name: string;
@@ -70,6 +71,7 @@ export const getAllWarrantyItems = async (): Promise<FullWarrantyItem[]> => {
   const result = await db.query(
     `SELECT
       w.*,
+      p.brand_id,
       p.model_name,
       p.part_number,
       b.name AS branch_name,
@@ -92,7 +94,7 @@ export const getAllWarrantyItems = async (): Promise<FullWarrantyItem[]> => {
     JOIN branches b ON w.branch_id = b.id
     LEFT JOIN customers c ON w.customer_id = c.id
     LEFT JOIN installations i ON i.warranty_item_id = w.id
-    GROUP BY w.id, p.model_name, p.part_number, b.name, c.name, c.mobile
+    GROUP BY w.id, p.brand_id, p.model_name, p.part_number, b.name, c.name, c.mobile
     ORDER BY w.created_at DESC`
   );
   return result.rows;

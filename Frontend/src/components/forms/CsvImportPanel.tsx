@@ -1,10 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
-import { createProductEntry } from '../../api/warranty';
+import { createProductEntry, getAllWarrantyRecords } from '../../api/warranty';
 import { Button } from '../common/Button';
 import {
+  createWarrantyRecordsCsv,
   parseProductCsv,
-  PRODUCT_CSV_TEMPLATE,
   type CsvImportIssue,
   type ParsedProductCsv,
 } from '../../utils/csvImport';
@@ -18,19 +18,19 @@ interface ImportFailure {
   message: string;
 }
 
-const getErrorMessage = (error: unknown): string => {
+const getErrorMessage = (error: unknown, fallback = 'The server rejected this row.'): string => {
   if (isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message || 'The server rejected this row.';
+    return error.response?.data?.message || fallback;
   }
-  return 'An unexpected error prevented this row from being imported.';
+  return fallback;
 };
 
-const downloadTemplate = () => {
-  const template = new Blob([PRODUCT_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(template);
+const downloadCsv = (content: string) => {
+  const csv = new Blob(['\uFEFF', content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(csv);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'warranty-import-template.csv';
+  link.download = 'warranty-records.csv';
   link.click();
   URL.revokeObjectURL(url);
 };
@@ -44,6 +44,23 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportError('');
+
+    try {
+      const records = await getAllWarrantyRecords();
+      downloadCsv(createWarrantyRecordsCsv(records));
+    } catch (error) {
+      setExportError(getErrorMessage(error, 'Unable to retrieve warranty records.'));
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleFileSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -98,13 +115,12 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
         <div>
           <h2 className="text-base font-semibold text-slate-900 dark:text-white">Import from CSV</h2>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Import product, warranty, and installation records in bulk. Use the template and provide the existing
-            brand, product, branch, and customer IDs.
+            Import product, warranty, and installation records in bulk, or export existing records with their database IDs.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={downloadTemplate}>
-            Download template
+          <Button type="button" variant="outline" onClick={handleExport} isLoading={isExporting} disabled={isExporting}>
+            Download records CSV
           </Button>
           <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
             Import CSV
@@ -119,6 +135,12 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
           />
         </div>
       </div>
+
+      {exportError && (
+        <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
+          Failed to export records: {exportError}
+        </p>
+      )}
 
       {fileError && (
         <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">

@@ -55,6 +55,10 @@ export interface FullWarrantyRecord {
   id: number | string;
   serial_number: string;
   label_id: string;
+  brand_id: number | string;
+  product_id: number | string;
+  branch_id: number | string;
+  customer_id: number | string | null;
   warranty_months: number;
   warranty_start_date: string;
   warranty_end_date: string;
