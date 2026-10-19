@@ -1,8 +1,13 @@
 import React from 'react';
 import { MainLayout } from '../components/layout/MainLayout';
 import { EnterProductForm } from '../components/forms/EnterProductForm';
+import { CsvImportPanel } from '../components/forms/CsvImportPanel';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../api/queryKeys';
 
 export const Dashboard: React.FC = () => {
+  const queryClient = useQueryClient();
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -18,6 +23,11 @@ export const Dashboard: React.FC = () => {
             <p className="mt-0.5 text-sm font-semibold text-slate-800 dark:text-slate-200">Enter Product</p>
           </div>
         </div>
+
+        <CsvImportPanel onImported={() => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.warrantyRecords });
+          void queryClient.invalidateQueries({ queryKey: ['warranty-search'] });
+        }} />
 
         <EnterProductForm onSuccess={() => alert('Product, warranty, and installation saved successfully!')} />
       </div>
