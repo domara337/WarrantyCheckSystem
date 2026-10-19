@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { createProductEntry, getAllWarrantyRecords } from '../../api/warranty';
+import { getProducts } from '../../api/masterData';
 import { Button } from '../common/Button';
 import {
   createWarrantyRecordsCsv,
@@ -42,6 +43,7 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
   const [fileError, setFileError] = useState('');
   const [importFailures, setImportFailures] = useState<ImportFailure[]>([]);
   const [skippedRows, setSkippedRows] = useState<ImportFailure[]>([]);
+  const [correctedRows, setCorrectedRows] = useState<ImportFailure[]>([]);
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
@@ -91,22 +93,44 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
     setProgress(0);
     setImportFailures([]);
     setSkippedRows([]);
+    setCorrectedRows([]);
     setImportedCount(0);
     const failures: ImportFailure[] = [];
     const skipped: ImportFailure[] = [];
+    const corrections: ImportFailure[] = [];
     let successfulImports = 0;
 
-    let existingSerialNumbers: Set<string>;
+    let products: Awaited<ReturnType<typeof getProducts>>;
+    let existingRecords: Awaited<ReturnType<typeof getAllWarrantyRecords>>;
     try {
-      const existingRecords = await getAllWarrantyRecords();
-      existingSerialNumbers = new Set(existingRecords.map((record) => record.serial_number.trim().toLowerCase()));
+      [products, existingRecords] = await Promise.all([getProducts(), getAllWarrantyRecords()]);
     } catch (error) {
-      setImportFailures([{ message: `Unable to check for existing records: ${getErrorMessage(error, 'Please retry the import.')}` }]);
+      setImportFailures([{ message: `Unable to verify products and existing records: ${getErrorMessage(error, 'Please retry the import.')}` }]);
       setIsImporting(false);
       return;
     }
 
+    const productsById = new Map(products.map((product) => [String(product.id).trim(), product]));
+    const existingSerialNumbers = new Set(existingRecords.map((record) => record.serial_number.trim().toLowerCase()));
+
     for (const [index, record] of entries.entries()) {
+      const product = productsById.get(String(record.entry.product_id).trim());
+      if (!product) {
+        failures.push({ row: record.row, message: `Product ID "${record.entry.product_id}" was not found.` });
+        setProgress(index + 1);
+        setImportFailures([...failures]);
+        continue;
+      }
+
+      if (Number(record.entry.brand_id) !== Number(product.brand_id)) {
+        corrections.push({
+          row: record.row,
+          message: `Brand ID corrected to ${product.brand_id} to match product "${product.model_name}".`,
+        });
+        record.entry.brand_id = product.brand_id;
+        setCorrectedRows([...corrections]);
+      }
+
       if (existingSerialNumbers.has(record.entry.serial_number.trim().toLowerCase())) {
         skipped.push({ row: record.row, message: 'Serial number already exists; row was skipped.' });
         setProgress(index + 1);
@@ -202,6 +226,14 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
           {skippedRows.length > 0 && (
             <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">
               {skippedRows.map((row) => (
+                <li key={`${row.row}-${row.message}`}>Row {row.row}: {row.message}</li>
+              ))}
+            </ul>
+          )}
+
+          {correctedRows.length > 0 && (
+            <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+              {correctedRows.map((row) => (
                 <li key={`${row.row}-${row.message}`}>Row {row.row}: {row.message}</li>
               ))}
             </ul>
