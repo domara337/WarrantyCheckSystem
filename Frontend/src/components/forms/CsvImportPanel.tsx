@@ -14,7 +14,7 @@ interface CsvImportPanelProps {
 }
 
 interface ImportFailure {
-  row: number;
+  row?: number;
   message: string;
 }
 
@@ -41,6 +41,7 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
   const [fileIssues, setFileIssues] = useState<CsvImportIssue[]>([]);
   const [fileError, setFileError] = useState('');
   const [importFailures, setImportFailures] = useState<ImportFailure[]>([]);
+  const [skippedRows, setSkippedRows] = useState<ImportFailure[]>([]);
   const [importedCount, setImportedCount] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
@@ -89,20 +90,41 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
     setIsImporting(true);
     setProgress(0);
     setImportFailures([]);
+    setSkippedRows([]);
     setImportedCount(0);
     const failures: ImportFailure[] = [];
+    const skipped: ImportFailure[] = [];
     let successfulImports = 0;
 
+    let existingSerialNumbers: Set<string>;
+    try {
+      const existingRecords = await getAllWarrantyRecords();
+      existingSerialNumbers = new Set(existingRecords.map((record) => record.serial_number.trim().toLowerCase()));
+    } catch (error) {
+      setImportFailures([{ message: `Unable to check for existing records: ${getErrorMessage(error, 'Please retry the import.')}` }]);
+      setIsImporting(false);
+      return;
+    }
+
     for (const [index, record] of entries.entries()) {
+      if (existingSerialNumbers.has(record.entry.serial_number.trim().toLowerCase())) {
+        skipped.push({ row: record.row, message: 'Serial number already exists; row was skipped.' });
+        setProgress(index + 1);
+        setSkippedRows([...skipped]);
+        continue;
+      }
+
       try {
         await createProductEntry(record.entry);
         successfulImports += 1;
+        existingSerialNumbers.add(record.entry.serial_number.trim().toLowerCase());
       } catch (error) {
         failures.push({ row: record.row, message: getErrorMessage(error) });
       }
       setProgress(index + 1);
       setImportedCount(successfulImports);
       setImportFailures([...failures]);
+      setSkippedRows([...skipped]);
     }
 
     if (successfulImports > 0) onImported();
@@ -152,10 +174,10 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
         <div className="mt-5 space-y-4 border-t border-slate-200 pt-4 dark:border-slate-800">
           <p className="text-sm text-slate-700 dark:text-slate-300">
             {isImporting
-              ? `Importing row ${progress} of ${entries.length}...`
+                ? `Processing row ${progress} of ${entries.length}...`
               : importedCount === null
                 ? `${entries.length} valid ${entries.length === 1 ? 'record' : 'records'} ready to import.`
-                : `Imported ${importedCount} of ${entries.length} records.`}
+                  : `Imported ${importedCount}; skipped ${skippedRows.length} existing ${skippedRows.length === 1 ? 'record' : 'records'}; ${importFailures.length} failed.`}
             {fileIssues.length > 0 && ` ${fileIssues.length} invalid ${fileIssues.length === 1 ? 'row was' : 'rows were'} skipped.`}
           </p>
 
@@ -170,14 +192,25 @@ export const CsvImportPanel: React.FC<CsvImportPanelProps> = ({ onImported }) =>
           {importFailures.length > 0 && (
             <ul role="alert" className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
               {importFailures.map((failure) => (
-                <li key={`${failure.row}-${failure.message}`}>Row {failure.row}: {failure.message}</li>
+                <li key={`${failure.row ?? 'import'}-${failure.message}`}>
+                  {failure.row ? `Row ${failure.row}: ` : ''}{failure.message}
+                </li>
               ))}
             </ul>
           )}
 
-          {importedCount !== null && importedCount > 0 && importFailures.length === 0 && !isImporting && (
+          {skippedRows.length > 0 && (
+            <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              {skippedRows.map((row) => (
+                <li key={`${row.row}-${row.message}`}>Row {row.row}: {row.message}</li>
+              ))}
+            </ul>
+          )}
+
+          {importedCount !== null && importFailures.length === 0 && !isImporting && (
             <p role="status" className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              All valid records were imported successfully.
+              Import finished. {importedCount} new {importedCount === 1 ? 'record was' : 'records were'} imported
+              {skippedRows.length > 0 ? `; ${skippedRows.length} existing ${skippedRows.length === 1 ? 'record was' : 'records were'} skipped` : ''}.
             </p>
           )}
 

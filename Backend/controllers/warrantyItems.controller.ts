@@ -198,6 +198,17 @@ export const createProduct = async (req: Request<{}, {}, ProductEntryInput>, res
     res.status(201).json({ success: true, message: 'Product, warranty, and installation created successfully.', data: result });
   } catch (error) {
     console.error('Error creating unified product entry:', error);
+    const databaseCode =
+      error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+        ? error.code
+        : undefined;
+    if (databaseCode === '23505') {
+      res.status(409).json({
+        success: false,
+        message: 'A warranty record with this serial number or label ID already exists.',
+      });
+      return;
+    }
     res.status(500).json({ success: false, message: 'Server error while creating product, warranty, and installation.' });
   }
 };
