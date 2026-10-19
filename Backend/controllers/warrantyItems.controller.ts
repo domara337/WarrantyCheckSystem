@@ -202,6 +202,7 @@ export const createProduct = async (req: Request<{}, {}, ProductEntryInput>, res
       error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
         ? error.code
         : undefined;
+
     if (databaseCode === '23505') {
       res.status(409).json({
         success: false,
@@ -209,6 +210,22 @@ export const createProduct = async (req: Request<{}, {}, ProductEntryInput>, res
       });
       return;
     }
+
+    const inputErrorMessages: Record<string, string> = {
+      '22P02': 'One or more IDs in this row have an invalid format.',
+      '22003': 'A numeric value in this row is outside the supported range.',
+      '22007': 'A date in this row is invalid.',
+      '22008': 'A date in this row is outside the supported range.',
+      '23502': 'A required database field is missing for this row.',
+      '23503': 'A brand, product, branch, or customer ID in this row does not exist.',
+      '23514': 'A value in this row does not meet a database constraint.',
+    };
+    const inputErrorMessage = databaseCode ? inputErrorMessages[databaseCode] : undefined;
+    if (inputErrorMessage) {
+      res.status(400).json({ success: false, message: inputErrorMessage });
+      return;
+    }
+
     res.status(500).json({ success: false, message: 'Server error while creating product, warranty, and installation.' });
   }
 };
