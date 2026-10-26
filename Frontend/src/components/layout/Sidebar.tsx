@@ -154,11 +154,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Footer */}
         <div className="shrink-0 border-t border-slate-800 px-5 py-4">
-          <p className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Environment</p>
-          <p className="mt-1 flex items-center gap-2 text-sm font-medium text-slate-300">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-            Development / Local
-          </p>
           <button
             type="button"
             onClick={() => {
@@ -166,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               onClose();
               navigate('/login', { replace: true });
             }}
-            className="mt-4 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M18 15l3-3m0 0l-3-3m3 3H9" />
